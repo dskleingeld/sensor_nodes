@@ -9,14 +9,20 @@
 
 #include <stdint.h>
 #include <string>
+#include <sstream>
+#include <cstring>
+
 
 #include "config.h"
 #include "read_sensors.h"
 
 //define your default values here, if there are different values in config.json, they are overwritten.
 char url_port[100]; //domain + port, www.example.org:8080 or www.example.org
-char key[32];
-char node_id[16];
+char key_str[32];
+char node_id_str[32];
+
+uint8_t key_arr[8];
+uint8_t node_id_arr[2];
 
 //default custom static IP
 char static_ip[16] = "10.0.1.56";
@@ -48,8 +54,10 @@ void setupSpiffs(){
   Serial.println("mounting FS...");
 
   if (SPIFFS.begin()) {
+    //SPIFFS.format(); //clean filesystem for testing
     Serial.println("mounted file system");
 
+    //if (false) {
     if (SPIFFS.exists("/config.json")) {
       //file exists, reading and loading
       Serial.println("reading config file");
@@ -67,11 +75,14 @@ void setupSpiffs(){
         if (json.success()) {
           Serial.println("\nparsed json");
 
-          strcpy(url_port, json["url_port"]);
-          strcpy(key, json["key"]);
-          strcpy(node_id, json["node id"]);
+          Serial.println("\nAARRRGGHHH SEGFAULTSAAAHHH");
 
           if(json["ip"]) {
+
+            strcpy(url_port, json["url_port"]);
+            strcpy(key_str, json["key_str"]);
+            strcpy(node_id_str, json["node_id_str"]);
+
             Serial.println("setting custom ip from config");
             strcpy(static_ip, json["ip"]);
             strcpy(static_gw, json["gateway"]);
@@ -86,6 +97,19 @@ void setupSpiffs(){
         }
       }
     }
+    if (SPIFFS.exists("/params.raw")) {
+      File params = SPIFFS.open("params.raw");
+      size_t size = params.size();
+      if (size == 10) {
+        std::unique_ptr<char[]> buf(new char[size]);
+        params.readBytes(buf.get(), size);
+
+        memcpy(node_id_arr, buf.get(), 2);
+        memcpy(key_arr, buf.get(), 8);
+        Serial.println("wrote things");
+      }
+      Serial.println("did not write");
+    }
   } else {
     Serial.println("failed to mount FS");
   }
@@ -96,6 +120,41 @@ void reset(){
   WiFiManager wm;
   wm.erase();
   ESP.restart();
+}
+
+void SerializeUint64(uint8_t* buf, uint64_t uval) {
+    *(buf+0) = uval;
+    *(buf+1) = uval >> 8;
+    *(buf+2) = uval >> 16;
+    *(buf+3) = uval >> 24;
+    *(buf+4) = uval >> 32;
+    *(buf+5) = uval >> 40;
+    *(buf+6) = uval >> 48;
+    *(buf+7) = uval >> 56;
+}
+
+void SerializeUint16(uint8_t* buf, uint16_t uval) {
+    *(buf+0) = uval;
+    *(buf+1) = uval >> 8;
+}
+
+void SerialiseNodeIdKey() {
+  uint64_t key;
+  uint16_t node_id;
+
+  std::stringstream key_ss;
+  key_ss << key_str;
+  key_ss >> key;
+
+  std::stringstream node_id_ss;
+  node_id_ss << node_id_str;
+  node_id_ss >> node_id;
+
+  Serial.println("saving config");
+  uint8_t key_arr[8];
+  uint8_t node_id_arr[2];
+  SerializeUint16(node_id_arr, node_id);
+  SerializeUint64(key_arr, key);
 }
 
 void setup() {
@@ -117,14 +176,14 @@ void setup() {
   // The extra parameters to be configured (can be either global or just in the setup)
   // After connecting, parameter.getValue() will get you the configured value
   // id/name placeholder/prompt default length
-  WiFiManagerParameter custom_url_port("url_port", "url_port", "", 100);
-  WiFiManagerParameter custom_key("key", "key", "", 32);
-  WiFiManagerParameter custom_node_id("node id", "node id", "", 16);
+  WiFiManagerParameter custom_url_port("url_port", "url port", "blabla", 100);
+  WiFiManagerParameter custom_node_id("node_id", "node id", "hihihi", 32);
+  WiFiManagerParameter custom_key("key", "key", "lolz", 32);
 
   //add all your parameters here
   wm.addParameter(&custom_url_port);
-  wm.addParameter(&custom_key);
   wm.addParameter(&custom_node_id);
+  wm.addParameter(&custom_key);
 
   // set static ip
   IPAddress _ip,_gw,_sn;
@@ -152,18 +211,17 @@ void setup() {
 
   //save the custom parameters to FS
   if (shouldSaveConfig) {
-
     //read updated parameters
     strcpy(url_port, custom_url_port.getValue());
-    strcpy(key, custom_key.getValue());
-    strcpy(node_id, custom_node_id.getValue());
+    strcpy(key_str, custom_key.getValue());
+    strcpy(node_id_str, custom_node_id.getValue());
 
-    Serial.println("saving config");
+
     DynamicJsonBuffer jsonBuffer;
     JsonObject& json = jsonBuffer.createObject();
-    json["url_port"]  = url_port;
-    json["key"]  = key;
-    json["node id"]  = node_id;
+    json["url_port"]    = url_port;
+    json["key_str"]     = key_str;
+    json["node_id_str"] = node_id_str;
 
     json["ip"]      = WiFi.localIP().toString();
     json["gateway"] = WiFi.gatewayIP().toString();
@@ -177,6 +235,14 @@ void setup() {
     json.prettyPrintTo(Serial);
     json.printTo(configFile);
     configFile.close();
+
+    File params = SPIFFS.open("/params.raw", "w");
+    if (!params) {
+      Serial.println("failed to open config file for writing");
+    }
+    params.write(node_id_arr, 2);
+    params.write(key_arr, 8);
+
     //end save
     shouldSaveConfig = false;
   }
@@ -194,10 +260,14 @@ void setup() {
   Serial.println("hi");
 }
 
+
+
 void loop() {
   Serial.println("hello");
-  constexpr uint64_t test_key = 0;
   uint8_t payload[sensordata_length+10];
+
+  memcpy(payload, node_id_arr, 2);
+  memcpy(payload, key_arr, 8);
   get_payload(payload+10);
 
   HTTPClient https;

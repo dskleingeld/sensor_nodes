@@ -7,7 +7,7 @@
 
 const char* access_point_name = "Sensor_1";
 const char* access_point_password = "password";
-constexpr int portal_timeout = 180; //seconds
+constexpr int portal_timeout = 300; //seconds
 
 constexpr int sleep_between_connect_attempts =  600 * uS_TO_S_FACTOR;
 constexpr int sleep_between_measurements =  5 * uS_TO_S_FACTOR;

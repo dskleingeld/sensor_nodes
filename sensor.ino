@@ -53,7 +53,8 @@ void setupSpiffs(){
   //read configuration from FS json
   Serial.println("mounting FS...");
 
-  if (SPIFFS.begin()) {
+  #define FORMAT_SPIFFS_IF_FAILED true
+  if (SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
     //SPIFFS.format(); //clean filesystem for testing
     Serial.println("mounted file system");
 
@@ -98,18 +99,24 @@ void setupSpiffs(){
       }
     }
     if (SPIFFS.exists("/params.raw")) {
-      File params = SPIFFS.open("params.raw");
-      size_t size = params.size();
-      if (size == 10) {
-        std::unique_ptr<char[]> buf(new char[size]);
-        params.readBytes(buf.get(), size);
-
-        memcpy(node_id_arr, buf.get(), 2);
-        memcpy(key_arr, buf.get(), 8);
-        Serial.println("wrote things");
-      }
-      Serial.println("did not write");
-    }
+      File paramsFile = SPIFFS.open("/params.raw", FILE_READ);
+      if (paramsFile) {
+        size_t sizeofparams = paramsFile.size();
+        if (sizeofparams == 10) {
+          std::unique_ptr<char[]> buf(new char[sizeofparams]);
+          paramsFile.readBytes(buf.get(), sizeofparams);
+  
+          memcpy(node_id_arr, buf.get(), 2);
+          memcpy(key_arr, buf.get()+2, 8);
+  
+          Serial.println("node_id_arr: ");
+          Serial.println(node_id_arr[0]);
+  
+          Serial.println("wrote things");
+        } else { Serial.print("did not read params file, incorrect size: "); Serial.println(sizeofparams);}
+        paramsFile.close();
+      } else { Serial.print("could not open params file"); }
+    } else { Serial.println("no params file");}
   } else {
     Serial.println("failed to mount FS");
   }
@@ -149,10 +156,9 @@ void SerialiseNodeIdKey() {
   std::stringstream node_id_ss;
   node_id_ss << node_id_str;
   node_id_ss >> node_id;
+  Serial.print("node_id: ");  
+  Serial.println(node_id);  
 
-  Serial.println("saving config");
-  uint8_t key_arr[8];
-  uint8_t node_id_arr[2];
   SerializeUint16(node_id_arr, node_id);
   SerializeUint64(key_arr, key);
 }
@@ -177,13 +183,11 @@ void setup() {
   // After connecting, parameter.getValue() will get you the configured value
   // id/name placeholder/prompt default length
   WiFiManagerParameter custom_url_port("url_port", "url port", "blabla", 100);
-  WiFiManagerParameter custom_node_id("node_id", "node id", "hihihi", 32);
-  WiFiManagerParameter custom_key("key", "key", "lolz", 32);
+  WiFiManagerParameter custom_api_key("api_key", "api key", "0:12345", 32);
 
   //add all your parameters here
   wm.addParameter(&custom_url_port);
-  wm.addParameter(&custom_node_id);
-  wm.addParameter(&custom_key);
+  wm.addParameter(&custom_api_key);
 
   // set static ip
   IPAddress _ip,_gw,_sn;
@@ -211,11 +215,19 @@ void setup() {
 
   //save the custom parameters to FS
   if (shouldSaveConfig) {
+  //if (true) {
+    char api_key_str[40];
     //read updated parameters
     strcpy(url_port, custom_url_port.getValue());
-    strcpy(key_str, custom_key.getValue());
-    strcpy(node_id_str, custom_node_id.getValue());
+    strcpy(api_key_str, custom_api_key.getValue());
 
+    char* split = strchr(api_key_str, ':'); //find where to split
+    *split = '\0'; //add str end
+    strcpy(key_str, split+1);
+    strcpy(node_id_str, api_key_str);
+    Serial.print("key, node_id: ");
+    Serial.print(key_str);
+    Serial.println(node_id_str);
 
     DynamicJsonBuffer jsonBuffer;
     JsonObject& json = jsonBuffer.createObject();
@@ -236,12 +248,28 @@ void setup() {
     json.printTo(configFile);
     configFile.close();
 
-    File params = SPIFFS.open("/params.raw", "w");
+    SerialiseNodeIdKey();
+    File params = SPIFFS.open("/params.raw", FILE_WRITE); //opens and truncates file
     if (!params) {
-      Serial.println("failed to open config file for writing");
+      Serial.println("failed to open params file for writing");
     }
-    params.write(node_id_arr, 2);
+    //params.seek(0);
+    Serial.print("node_id_arr: ");
+    Serial.println(node_id_arr[0]);
+    Serial.println(node_id_arr[1]);
+    if (!params.write(node_id_arr, 2)) {Serial.println("write failed!");}
     params.write(key_arr, 8);
+    params.flush();
+    params.close();
+
+    File params2 = SPIFFS.open("/params.raw", FILE_READ);
+    if (!params2) {
+      Serial.println("failed to open params file for writing");
+    }
+    size_t size = params2.size();
+    Serial.print("params size: ");
+    Serial.println(size);
+    params2.close();
 
     //end save
     shouldSaveConfig = false;
@@ -266,8 +294,22 @@ void loop() {
   Serial.println("hello");
   uint8_t payload[sensordata_length+10];
 
+  Serial.println("node_id_arr: ");
+  for(int i=0; i<2; i++){
+    Serial.print(*(node_id_arr+i));
+    Serial.print(", ");
+  }
+  Serial.println("");
+
+  Serial.println("key_arr: ");
+  for(int i=0; i<8; i++){
+    Serial.print(*(key_arr+i));
+    Serial.print(", ");
+  }
+  Serial.println("");
+
   memcpy(payload, node_id_arr, 2);
-  memcpy(payload, key_arr, 8);
+  memcpy(payload+2, key_arr, 8);
   get_payload(payload+10);
 
   HTTPClient https;
@@ -277,6 +319,13 @@ void loop() {
   url.append("/newdata");
   Serial.println(url.c_str() );
   Serial.println(url_port );
+
+  Serial.println("payload: ");
+  for(int i=0; i<sensordata_length+10; i++){
+    Serial.print(*(payload+i));
+    Serial.print(", ");
+  }
+  Serial.println("");
 
   //https.begin("http://example.com/index.html");
   //
@@ -302,6 +351,9 @@ void loop() {
 
   Serial.println("done http Post");
   // put your main code here, to run repeatedly:
+
+  if (shouldReset) {reset();}
+
   esp_sleep_enable_timer_wakeup(sleep_between_measurements);
   //esp_deep_sleep_start();
   Serial.println("should never print");

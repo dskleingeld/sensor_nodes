@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "compression.h"
 
-constexpr int sensordata_length = 10;
+constexpr int sensordata_length = 2;
 
 bool get_payload(uint8_t* payload);
 

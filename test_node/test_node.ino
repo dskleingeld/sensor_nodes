@@ -105,13 +105,13 @@ void setupSpiffs(){
         if (sizeofparams == 10) {
           std::unique_ptr<char[]> buf(new char[sizeofparams]);
           paramsFile.readBytes(buf.get(), sizeofparams);
-  
+
           memcpy(node_id_arr, buf.get(), 2);
           memcpy(key_arr, buf.get()+2, 8);
-  
+
           Serial.println("node_id_arr: ");
           Serial.println(node_id_arr[0]);
-  
+
           Serial.println("wrote things");
         } else { Serial.print("did not read params file, incorrect size: "); Serial.println(sizeofparams);}
         paramsFile.close();
@@ -156,8 +156,8 @@ void SerialiseNodeIdKey() {
   std::stringstream node_id_ss;
   node_id_ss << node_id_str;
   node_id_ss >> node_id;
-  Serial.print("node_id: ");  
-  Serial.println(node_id);  
+  Serial.print("node_id: ");
+  Serial.println(node_id);
 
   SerializeUint16(node_id_arr, node_id);
   SerializeUint64(key_arr, key);
@@ -314,9 +314,12 @@ void loop() {
 
   HTTPClient https;
 
-  std::string url ("https://www.");
-  url.append(url_port);
-  url.append("/newdata");
+  //TODO re-enable
+  //std::string url ("https://www.");
+  //url.append(url_port);
+  //url.append("/newdata");
+
+  std::string url("https://www.deviousd.duckdns.org:8080/newdata");
   Serial.println(url.c_str() );
   Serial.println(url_port );
 

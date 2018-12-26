@@ -4,8 +4,11 @@
 #include <stdint.h>
 #include "compression.h"
 
-constexpr int sensordata_length = 2;
+#include <Arduino.h>
+#include <Wire.h>
 
+constexpr int sensordata_length = 3;
+bool init_sensors();
 bool get_payload(uint8_t* payload);
 
 #endif

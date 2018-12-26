@@ -2,6 +2,7 @@
 #define COMPR_H
 
 #include <stdint.h>
+#include <Arduino.h>
 
 uint8_t div_up(uint8_t x, uint8_t y);
 

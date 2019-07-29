@@ -5,14 +5,18 @@ extern char static_ip[16];
 extern char static_gw[16];
 extern char static_sn[16];
 
-void get_params_from_portal(Key key, UrlPort url_port, NodeId node_id, WiFiManagerParameter key_and_id) {
+//bool get_params_from_portal() {
+bool get_params_from_portal(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManagerParameter &key_and_id) {
 
-    char key_and_id_str[40];
+    char key_and_id_str[32];
     //read updated parameters
-    strcpy(url_port.str, url_port.wifi_param.getValue());
-    strcpy(key_and_id_str, key_and_id.getValue());
+    strcpy(&url_port.str[0], url_port.wifi_param.getValue());
+    strcpy(&key_and_id_str[0], key_and_id.getValue());
 
+    
     char* split = strchr(key_and_id_str, ':'); //find where to split
+    if(split==NULL){return false;}
+
     *split = '\0'; //add str end
     strcpy(key.str, split+1);
     strcpy(node_id.str, key_and_id_str);
@@ -22,9 +26,10 @@ void get_params_from_portal(Key key, UrlPort url_port, NodeId node_id, WiFiManag
     Serial.print("key, node_id: ");
     Serial.print(key.str);
     Serial.println(node_id.str);
+    
 }
 
-bool save_params_to_FS(Key key, UrlPort url_port, NodeId node_id, WiFiManagerParameter key_and_id) {
+bool save_params_to_FS(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManagerParameter &key_and_id) {
 
     DynamicJsonDocument doc(1024);
     doc["url_port"]    = url_port.str;
@@ -37,6 +42,7 @@ bool save_params_to_FS(Key key, UrlPort url_port, NodeId node_id, WiFiManagerPar
 
     File configFile = SPIFFS.open("/config.json", "w");
     if (!configFile) { Serial.println("failed to open config file for writing"); return false; }
+    Serial.print("Json content: ");
     serializeJsonPretty(doc, Serial);
     serializeJson(doc, configFile);
     configFile.close();

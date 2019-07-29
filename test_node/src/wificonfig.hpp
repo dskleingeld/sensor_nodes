@@ -15,7 +15,7 @@
 class Key {
     public:
         uint8_t array[8];
-        char str[32];
+        char str[40];
         void update_array();
     private:
         void serialise(uint8_t* buf, uint64_t val);
@@ -38,7 +38,8 @@ struct UrlPort {
 };
 
 
-void get_params_from_portal(Key key, UrlPort url_port, NodeId node_id, WiFiManagerParameter key_and_id);
-bool save_params_to_FS(Key key, UrlPort url_port, NodeId node_id, WiFiManagerParameter key_and_id);
+//bool get_params_from_portal();
+bool get_params_from_portal(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManagerParameter &key_and_id);
+bool save_params_to_FS(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManagerParameter &key_and_id);
 bool load_params_from_FS(Key key, UrlPort url_port, NodeId node_id);
 #endif

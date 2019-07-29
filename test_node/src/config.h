@@ -5,8 +5,8 @@
 #define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP 15 /* Time ESP32 will go to sleep (in seconds) */
 
-const char* access_point_name = "Sensor_1";
-const char* access_point_password = "password";
+const char* ACCESS_POINT_NAME = "Sensor_1";
+const char* ACCESS_POINT_PASSW = "password";
 constexpr int portal_timeout = 300; //seconds
 
 constexpr int sleep_between_connect_attempts =  600 * uS_TO_S_FACTOR;

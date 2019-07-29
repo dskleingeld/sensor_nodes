@@ -1,0 +1,4 @@
+[submodule "WiFiManager"]
+    path = test_node/lib/WiFiManager
+    url = https://github.com/tzapu/WiFiManager.git
+    branch = development

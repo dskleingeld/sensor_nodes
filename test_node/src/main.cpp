@@ -8,9 +8,6 @@
 #endif
 
 #include <stdint.h>
-#include <string>
-#include <sstream>
-#include <cstring>
 
 #include "config.h"
 #include "read_sensors.h"
@@ -89,7 +86,6 @@ void setup() {
   Serial.begin(9600);
   
   setupSpiffs();
-  load_params_from_FS(key, url_port, node_id);
 
   // WiFiManager, Local intialization. Once its business is done, there is no need to keep it around
   WiFiManager wm;
@@ -98,18 +94,38 @@ void setup() {
   //set config save notify callback
   wm.setSaveConfigCallback(saveConfigCallback);
 
+  WiFiManagerParameter key_and_id_param;
+  if (!load_params_from_FS(key, url_port, node_id)){
+    //no saved params or error, reset wifimanager 
+    wm.resetSettings(); //whipe credentials
+    
+    url_port.wifi_param = WiFiManagerParameter("url_port", "url and port", "server.com:8080", 100);
+    key_and_id_param = WiFiManagerParameter("api_key", "api key", "0:00000000", 32);
+  } else {
+    //set wifi manager custom params from stored params
+    char api_string[32];
+    strcpy(&api_string[0], node_id.str);
+    strcat(&api_string[0], ":");
+    strcat(&api_string[0], key.str);
+    
+    strcpy(&api_string[0], key.str);
+
+    url_port.wifi_param = WiFiManagerParameter("url_port", "url port", url_port.str, 100);
+    key_and_id_param = WiFiManagerParameter("api_key", "api key", api_string, 32);
+  }
+
+    wm.addParameter(&url_port.wifi_param);
+    wm.addParameter(&key_and_id_param);
+
   // setup custom parameters
   //
   // The extra parameters to be configured (can be either global or just in the setup)
   // After connecting, parameter.getValue() will get you the configured value
   // id/name placeholder/prompt default length
-  WiFiManagerParameter url_port_param("url_port", "url port", "blabla", 100);
-  WiFiManagerParameter key_and_id_param("api_key", "api key", "0:12345", 32);
-  url_port.wifi_param = url_port_param;
+
 
   //add all your parameters here
-  wm.addParameter(&url_port.wifi_param);
-  wm.addParameter(&key_and_id_param);
+
 
   // set static ip
   IPAddress _ip,_gw,_sn;
@@ -117,9 +133,6 @@ void setup() {
   _gw.fromString(static_gw);
   _sn.fromString(static_sn);
   wm.setSTAStaticIPConfig(_ip, _gw, _sn);
-
-  //reset settings - wipe credentials for testing
-  //wm.resetSettings();
 
 
   //automatically connect using saved credentials if they exist

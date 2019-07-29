@@ -15,7 +15,7 @@
 class Key {
     public:
         uint8_t array[8];
-        char str[40];
+        char str[40]; 
         void update_array();
     private:
         void serialise(uint8_t* buf, uint64_t val);

@@ -41,5 +41,5 @@ struct UrlPort {
 //bool get_params_from_portal();
 bool get_params_from_portal(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManagerParameter &key_and_id);
 bool save_params_to_FS(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManagerParameter &key_and_id);
-bool load_params_from_FS(Key key, UrlPort url_port, NodeId node_id);
+bool load_params_from_FS(Key &key, UrlPort &url_port, NodeId &node_id);
 #endif

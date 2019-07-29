@@ -40,7 +40,7 @@ bool save_params_to_FS(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManager
     doc["gateway"] = WiFi.gatewayIP().toString();
     doc["subnet"]  = WiFi.subnetMask().toString();
 
-    File configFile = SPIFFS.open("/config.json", "w");
+    File configFile = SPIFFS.open("/config.json", FILE_WRITE);  //opens and truncates file
     if (!configFile) { Serial.println("failed to open config file for writing"); return false; }
     Serial.print("Json content: ");
     serializeJsonPretty(doc, Serial);
@@ -82,7 +82,7 @@ DeserializationError deserialise_file(File file, DynamicJsonDocument &doc){
     return error;
 }
 
-bool load_params_from_FS(Key key, UrlPort url_port, NodeId node_id){
+bool load_params_from_FS(Key &key, UrlPort &url_port, NodeId &node_id){
     if (!SPIFFS.exists("/config.json")) { Serial.println("no existing config"); return false; }
 
     File config_file = SPIFFS.open("/config.json", "r");
@@ -97,18 +97,30 @@ bool load_params_from_FS(Key key, UrlPort url_port, NodeId node_id){
         return false;
     }
 
-    if(!doc["ip"]) { Serial.println("no custom ip in config"); return false; }
+    const char* url_port_str =  doc["url_port"];
+    const char* key_str =       doc["key_str"];
+    const char* node_id_str =   doc["node_id_str"];
+    const char* static_ip_str = doc["ip"];
+    const char* static_gw_str = doc["gateway"];
+    const char* static_sn_str = doc["subnet"];
 
-    strcpy(url_port.str, doc["url_port"]);
-    strcpy(key.str, doc["key_str"]);
-    strcpy(node_id.str, doc["node_id_str"]);
+    //check if the Json has no missing values
+    if (url_port_str == nullptr || key_str == nullptr || 
+        node_id_str == nullptr || static_ip_str == nullptr || 
+        static_gw_str == nullptr || static_sn_str == nullptr) {
+        
+        Serial.println("FS params empty or corrupted"); return false;
+    }
+
+    strcpy(url_port.str, url_port_str);
+    strcpy(key.str,      key_str);
+    strcpy(node_id.str,  node_id_str);
     key.update_array();
     node_id.update_array();
 
-    Serial.println("setting custom ip from config");
-    strcpy(static_ip, doc["ip"]);
-    strcpy(static_gw, doc["gateway"]);
-    strcpy(static_sn, doc["subnet"]);
+    strcpy(static_ip, static_ip_str);
+    strcpy(static_gw, static_gw_str);
+    strcpy(static_sn, static_sn_str);
     Serial.println(static_ip);
     return true;
 }

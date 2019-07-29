@@ -87,13 +87,13 @@ void reset(){
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  Serial.println();
   
   setupSpiffs();
+  load_params_from_FS(key, url_port, node_id);
 
   // WiFiManager, Local intialization. Once its business is done, there is no need to keep it around
   WiFiManager wm;
-  wm.erase(); //FOR DEBUG ONLY
+  //wm.erase(); //FOR DEBUG ONLY
 
   //set config save notify callback
   wm.setSaveConfigCallback(saveConfigCallback);
@@ -116,7 +116,7 @@ void setup() {
   _ip.fromString(static_ip);
   _gw.fromString(static_gw);
   _sn.fromString(static_sn);
-  //wm.setSTAStaticIPConfig(_ip, _gw, _sn);
+  wm.setSTAStaticIPConfig(_ip, _gw, _sn);
 
   //reset settings - wipe credentials for testing
   //wm.resetSettings();
@@ -138,40 +138,23 @@ void setup() {
 
   //save the custom parameters to FS
   if (shouldSaveConfig) {
-
-    Serial.println(url_port.wifi_param.getValue());
-    Serial.println(key_and_id_param.getValue());
-
     get_params_from_portal(key, url_port, node_id, key_and_id_param);
     save_params_to_FS(key, url_port, node_id, key_and_id_param);
     
     shouldSaveConfig = false;
   }
 
-  Serial.println("local ip");
-  Serial.println(WiFi.localIP());
-  Serial.println(WiFi.gatewayIP());
-  Serial.println(WiFi.subnetMask());
-
   //enable reset interupt
   pinMode(interruptPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, FALLING);
 
-  /*
-  WiFiManagerParameter key_and_id_param("api_key", "api key", "0:12345", 32);
-  WiFiManagerParameter url_port_param("url_port", "url port", "blabla", 100);
-  url_port.wifi_param = url_port_param;
-  get_params_from_portal(key, url_port, node_id, key_and_id_param);
-*/
   Serial.println("setup completed");
 }
 
 
 
 void loop() {
-  Serial.println("test");
-  delay(1000);
-  /*
+  
   uint8_t payload[sensordata_length+10];
   memset (payload, 0, sensordata_length+10);
 
@@ -233,9 +216,7 @@ void loop() {
 
   if (shouldReset) {reset();}
   esp_sleep_enable_timer_wakeup(sleep_between_measurements);
-  //esp_deep_sleep_start();
+  esp_deep_sleep_start();
   Serial.println("should never print");
   delay(5000);
-
-  */
 }

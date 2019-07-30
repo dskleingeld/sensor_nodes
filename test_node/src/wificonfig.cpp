@@ -6,157 +6,85 @@ extern char static_gw[16];
 extern char static_sn[16];
 
 //bool get_params_from_portal() {
-bool get_params_from_portal(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManagerParameter &key_and_id) {
+bool get_params_from_portal(Params &params, WiFiManagerParameter &key_and_id, WiFiManagerParameter &url_port_param) {
 
     char key_and_id_str[32];
     //read updated parameters
-    strcpy(&url_port.str[0], url_port.wifi_param.getValue());
     strcpy(&key_and_id_str[0], key_and_id.getValue());
-
-    
     char* split = strchr(key_and_id_str, ':'); //find where to split
     if(split==NULL){return false;}
 
     *split = '\0'; //add str end
-    strcpy(key.str, split+1);
-    strcpy(node_id.str, key_and_id_str);
-    key.update_array();
-    node_id.update_array();
+    params.key = uint64_t_from_str(split+1);
+    params.node_id = uint16_t_from_str(key_and_id_str);
 
-    Serial.print("key, node_id: ");
-    Serial.print(key.str);
-    Serial.println(node_id.str);
-    
+    strcpy(&params.url_port[0], url_port_param.getValue());
 }
 
-bool save_params_to_FS(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManagerParameter &key_and_id) {
+void set_params_for_portal(Params &params, WiFiManagerParameter &key_and_id, WiFiManagerParameter &url_port_param){
+    
+    char api_id_str[12];
+    sprintf(api_id_str, "%u:%.10u", params.node_id, params.key);
 
-    DynamicJsonDocument doc(1024);
-    doc["url_port"]    = url_port.str;
-    doc["key_str"]     = key.str;
-    doc["node_id_str"] = node_id.str;
-
-    doc["ip"]      = WiFi.localIP().toString();
-    doc["gateway"] = WiFi.gatewayIP().toString();
-    doc["subnet"]  = WiFi.subnetMask().toString();
-
-    File configFile = SPIFFS.open("/config.json", FILE_WRITE);  //opens and truncates file
-    if (!configFile) { Serial.println("failed to open config file for writing"); return false; }
-    Serial.print("Json content: ");
-    serializeJsonPretty(doc, Serial);
-    serializeJson(doc, configFile);
-    configFile.close();
-
-    //should not be needed
-    // File params = SPIFFS.open("/params.raw", FILE_WRITE); //opens and truncates file
-    // if (!params) { Serial.println("failed to open params file for writing"); return false; }
-
-    // //params.seek(0);
-    // Serial.print("node_id_arr: ");
-    // Serial.println(node_id.array[0]);
-    // Serial.println(node_id.array[1]);
-    // if (!params.write(node_id.array, 2)) {Serial.println("write failed!");}
-    // params.write(key.array, 8);
-    // params.flush();
-    // params.close();
-
-    // File params2 = SPIFFS.open("/params.raw", FILE_READ);
-    // if (!params2) { Serial.println("failed to open params file for writing"); return false;} 
-    // size_t size = params2.size();
-    // Serial.print("params size: ");
-    // Serial.println(size);
-    // params2.close();
-    return true;
+    key_and_id = WiFiManagerParameter("api_key", "api key", api_id_str, 32);
+    url_port_param = WiFiManagerParameter("url_port", "url and port", params.url_port, 100);
 }
 
-DeserializationError deserialise_file(File file, DynamicJsonDocument &doc){
-    size_t size = file.size();
-    // Allocate a buffer to store contents of the file.
-    std::unique_ptr<char[]> buf(new char[size]);
-    file.readBytes(buf.get(), size);
-    
-    //deserialise json
-    auto error = deserializeJson(doc, (buf.get()));
-    //Serial.print("file json:");
-    //serializeJson(doc, Serial); //print to terminal
-    return error;
-}
 
-bool load_params_from_FS(Key &key, UrlPort &url_port, NodeId &node_id){
-    if (!SPIFFS.exists("/config.json")) { Serial.println("no existing config"); return false; }
+bool save_params_to_FS(Params &params) {
 
-    File config_file = SPIFFS.open("/config.json", "r");
-    if (!config_file) { Serial.println("could not open existing config file"); return false; }
+    File param_file = SPIFFS.open("/params.raw", FILE_WRITE); //opens and truncates file
+    if (!param_file) { Serial.println("failed to open params file for writing"); return false; }
 
-    DynamicJsonDocument doc(1024); 
-    auto error = deserialise_file(config_file, doc);
-    
-    if (error) {
-        Serial.print(F("deserializeJson() failed with code "));
-        Serial.println(error.c_str());
+    if (!param_file.write((uint8_t*)&params, sizeof(params))) {
+        Serial.println("write failed!");
+        param_file.close();
         return false;
     }
 
-    const char* url_port_str =  doc["url_port"];
-    const char* key_str =       doc["key_str"];
-    const char* node_id_str =   doc["node_id_str"];
-    const char* static_ip_str = doc["ip"];
-    const char* static_gw_str = doc["gateway"];
-    const char* static_sn_str = doc["subnet"];
-
-    //check if the Json has no missing values
-    if (url_port_str == nullptr || key_str == nullptr || 
-        node_id_str == nullptr || static_ip_str == nullptr || 
-        static_gw_str == nullptr || static_sn_str == nullptr) {
-        
-        Serial.println("FS params empty or corrupted"); return false;
-    }
-
-    strcpy(url_port.str, url_port_str);
-    strcpy(key.str,      key_str);
-    strcpy(node_id.str,  node_id_str);
-    key.update_array();
-    node_id.update_array();
-
-    strcpy(static_ip, static_ip_str);
-    strcpy(static_gw, static_gw_str);
-    strcpy(static_sn, static_sn_str);
-    Serial.println(static_ip);
+    param_file.flush();
+    param_file.close();
     return true;
 }
 
-void Key::update_array(){
-  uint64_t key;
+bool load_params_from_FS(Params &params){
+    if (!SPIFFS.exists("/params.raw")) { Serial.println("no existing params"); return false; }
+
+    File param_file = SPIFFS.open("/params.raw", FILE_READ);
+    if (!param_file) { Serial.println("could not open existing params file"); return false; }
+
+    size_t length = param_file.size();
+    if (length == sizeof(params)) {  
+        Serial.println("did not read params file, incorrect size: "); 
+        Serial.println(length);
+        return false; 
+    }
+
+    std::unique_ptr<char[]> buf(new char[length]);
+    auto read = param_file.read((uint8_t*)&params, sizeof(params));
+    param_file.close(); 
+    
+    if (read != sizeof(params)){ Serial.println("params corrupt"); return false; }
+
+    return true;
+}
+
+uint64_t uint64_t_from_str(char* str){
+  uint64_t numb;
 
   std::stringstream key_ss;
   key_ss << str;
-  key_ss >> key;
+  key_ss >> numb;
 
-  serialise(array, key);
+  return numb;
 }
 
-void NodeId::update_array(){
-  uint16_t key;
+uint16_t uint16_t_from_str(char* str){
+  uint16_t numb;
 
   std::stringstream node_id_ss;
   node_id_ss << str;
-  node_id_ss >> key;
+  node_id_ss >> numb;
 
-  serialise(array, key);
-}
-
-void Key::serialise(uint8_t* buf, uint64_t uval) {
-    *(buf+0) = uval;
-    *(buf+1) = uval >> 8;
-    *(buf+2) = uval >> 16;
-    *(buf+3) = uval >> 24;
-    *(buf+4) = uval >> 32;
-    *(buf+5) = uval >> 40;
-    *(buf+6) = uval >> 48;
-    *(buf+7) = uval >> 56;
-}
-
-void NodeId::serialise(uint8_t* buf, uint16_t uval) {
-    *(buf+0) = uval;
-    *(buf+1) = uval >> 8;
+  return numb;
 }

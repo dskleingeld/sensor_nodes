@@ -3,43 +3,33 @@
 
 #include <cstring>
 #include <sstream>
+#include <cstdio>
+#include <stdio.h>
 
 #include <Arduino.h>
 #include <WiFiManager.h>
-#include <ArduinoJson.h>
 
 #ifdef ESP32
   #include <SPIFFS.h>
 #endif
 
-class Key {
+uint64_t uint64_t_from_str(char* str);
+uint16_t uint16_t_from_str(char* str);
+
+class Params {
     public:
-        uint8_t array[8];
-        char str[40]; 
-        void update_array();
-    private:
-        void serialise(uint8_t* buf, uint64_t val);
+    uint16_t node_id;
+    uint64_t key;
+    char url_port[100];
+
+    void get_node_id_str();
+    void key_str();
 };
-
-class NodeId {
-    public:
-        uint8_t array[2];
-        char str[32];
-        void update_array();
-    private:
-        void serialise(uint8_t* buf, uint16_t val);
-};
-
-/////////////////////////
-
-struct UrlPort {
-    char str[100];
-    WiFiManagerParameter wifi_param;
-};
-
 
 //bool get_params_from_portal();
-bool get_params_from_portal(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManagerParameter &key_and_id);
-bool save_params_to_FS(Key &key, UrlPort &url_port, NodeId &node_id, WiFiManagerParameter &key_and_id);
-bool load_params_from_FS(Key &key, UrlPort &url_port, NodeId &node_id);
+bool get_params_from_portal(Params &params, WiFiManagerParameter &key_and_id, WiFiManagerParameter &url_port_param);
+void set_params_for_portal(Params &params, WiFiManagerParameter &key_and_id, WiFiManagerParameter &url_port_param);
+
+bool save_params_to_FS(Params &params);
+bool load_params_from_FS(Params &params);
 #endif

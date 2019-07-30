@@ -2,3 +2,9 @@
 	path = test_node/lib/WiFiManager
 	url = https://github.com/tzapu/WiFiManager
 	branch = development
+[submodule "test_node/lib/BME680"]
+	path = test_node/lib/BME680
+	url = https://github.com/SV-Zanshin/BME680
+[submodule "test_node/lib/MHZ19"]
+	path = test_node/lib/MHZ19
+	url = https://github.com/KonstantoS/MHZ19

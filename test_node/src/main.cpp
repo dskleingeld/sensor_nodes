@@ -1,10 +1,16 @@
 #include <FS.h>          // this needs to be first, or it all crashes and burns...
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
+
 #include "wificonfig.hpp"
+#include "read_sensors.h"
+#include "send_data.hpp"
+#include "config.h"
 
 #ifdef ESP32
   #include <SPIFFS.h>
 #endif
+
+volatile bool shouldReset = false;
 
 WiFiManager wm;
 Params params;
@@ -12,14 +18,16 @@ Params params;
 WiFiManagerParameter key_and_id_param("api_key", "api key", "0:00000000", 32);
 WiFiManagerParameter url_port_param("url_port", "url and port", "server.com:8080", 80);
 
-
 void saveParamsCallback();
+void reset();
+void IRAM_ATTR handleInterrupt();
 
 void setup() {
     // put your setup code here, to run once:
     Serial.begin(115200);
 
     //TODO start sensor reading;
+
     #define FORMAT_SPIFFS_IF_FAILED true
     if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
       //SPIFFS.format(); //cleans filesystem for testing
@@ -47,15 +55,38 @@ void setup() {
         Serial.println("failed to connect and hit timeout");
         //TODO go deep sleep for a while.
     }
+
+    //enable reset interupt
+    pinMode(interruptPin, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, FALLING);
 }
 
 void loop() {
   Serial.println("hi");
-  // if outdated update sensor data
-  // (data is outdated on first loop)
+  uint8_t payload[sensordata_length+10];
+  memcpy(payload, &params.node_id, 2);
+  memcpy(payload+2, &params.key, 8);
+  
+  read_to_package(payload+10);
+  post_payload(payload, params.url_port, sensordata_length);
 
-    // put your main code here, to run repeatedly:
-  delay(100);
+  if (shouldReset) {reset();}
+
+  //esp_sleep_enable_timer_wakeup(sleep_between_measurements);
+  //esp_deep_sleep_start();
+  Serial.println("did not go to deep sleep");
+  delay(5000);
+}
+
+
+void reset(){
+  wm.erase();
+  ESP.restart();
+}
+
+void IRAM_ATTR handleInterrupt() {
+  detachInterrupt(digitalPinToInterrupt(interruptPin));
+  shouldReset = true;
 }
 
 void saveParamsCallback () {

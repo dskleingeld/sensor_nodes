@@ -1,55 +1,61 @@
-#include "read_sensors.h"
+#include "read_sensors.hpp"
 
-int readCO2(HardwareSerial &serial);
-HardwareSerial serial2(2);
-
-Max44009 myLux(0x4A, 21, 22);
-BME680_Class BME680;
-MHZ19 mhz19;
-
-void configure_mhz19(){
-  if (!mhz19.enableABC()) {Serial.println("COULD NOT CONFIG mhz19");}
-  mhz19.setRange(2000);  
+Sensors::Sensors()
+  : bme680(), mhz19(), max44009(0x4A, 21, 22)
+{
 }
 
-void configure_BME680(){
-  BME680.setOversampling(TemperatureSensor,Oversample16); // Use enumerated type values
-  BME680.setOversampling(HumiditySensor,   Oversample16);
-  BME680.setOversampling(PressureSensor,   Oversample16);
-  
-  BME680.setIIRFilter(IIR4); // Setting IIR filter to a value of 4 samples;
-  BME680.setGas(320,150); // 320°c for 150 milliseconds
-}
+Error Sensors::init(){
+  //RXD2 16, TXD2 17
+  Serial2.begin(9600, SERIAL_8N1, 16, 17);
+  mhz19.setSerial(&Serial2);
 
-void read_to_package(uint8_t* payload){
-  while (!BME680.begin(I2C_STANDARD_MODE)) { //start BME
-    Serial.println(F("-  Unable to find BME680. Waiting 3 seconds.")); delay(3000); 
+  uint64_t start = millis();
+  uint64_t timeout = 1000;
+  while (!bme680.begin(I2C_STANDARD_MODE)) { //start BME
+    uint64_t elapsed = millis() - start;
+    if(elapsed > timeout){ return Error::CANT_FIND_BME680; }
+      Serial.println(F("-  Unable to find BME680. Waiting .1 second")); delay(100); 
   }
-  configure_BME680();
+  return Error::NONE;
+}
 
-  serial2.begin(9600, SERIAL_8N1, 16, 17, false, 20000UL);
-  //serial2.begin(9600);
+Error Sensors::configure(){
+  if (!mhz19.enableABC()) {Serial.println("COULD NOT CONFIG mhz19"); return Error::CANT_CONFIGURE_MHZ19;}
+  mhz19.setRange(2000);  
+
+  bme680.setOversampling(TemperatureSensor,Oversample16); // Use enumerated type values
+  bme680.setOversampling(HumiditySensor,   Oversample16);
+  bme680.setOversampling(PressureSensor,   Oversample16);
   
-  mhz19.setSerial(&serial2);
-  configure_mhz19();
+  bme680.setIIRFilter(IIR4); // Setting IIR filter to a value of 4 samples;
+  bme680.setGas(320,150); // 320°c for 150 milliseconds
+  return Error::NONE;
+}
+
+Error read_to_package(Sensors &sensors, uint8_t* payload){
+
   //Serial.println(readCO2(serial2));
 
   // if (!mhz19.isReady()) { delay(1000); }// Checking if sensor had preheated for 3 mins
   
-  int co2ppm = mhz19.readValue(); // Reading CO2 value. (Returns -1 if response wasn't received)
+  int co2ppm = sensors.mhz19.readValue(); // Reading CO2 value. (Returns -1 if response wasn't received)
 
-  float lux = myLux.getLux();
-  int err = myLux.getError();
+  float lux = sensors.max44009.getLux();
+  int err = sensors.max44009.getError();
   if (err != 0) {
      Serial.print("Error:\t");
      Serial.println(err);
+     return Error::MAX44009_LIB_ERROR;
   }
 
   int32_t temperature, humidity, pressure, gas;     // Variable to store readings
-  BME680.getSensorData(temperature,humidity,pressure,gas); // Get most recent readings
+  sensors.bme680.getSensorData(temperature,humidity,pressure,gas); // Get most recent readings
 
   encode_package(payload, temperature, humidity, pressure, gas, lux, co2ppm);
   print_values(payload, temperature, humidity, pressure, gas, lux, co2ppm);
+  
+  return Error::NONE;
 }
 
 // pressure in 1/100 pascal, humidity in 1/1000 percent, temperature in 1/100 degree, gas in 1/100 mOhm,
@@ -108,29 +114,3 @@ void print_values(uint8_t* payload, int32_t temperature, int32_t humidity,
     Serial.print(co2ppm);                 
     Serial.println(F("co2 ppm "));   
 }
-
-
-// int readCO2(HardwareSerial &serial) {
-//   unsigned int co2 = -1;
-//   unsigned char response[9];
-//   uint8_t CMD_READ[9] = {0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79}; // Read command
-//   serial.write(CMD_READ, 9);
-
-//   if (serial.available()) {
-//     serial.readBytes(response, 9);
-
-
-//     if (response[0] == 0xFF && response[1] == CMD_READ[2]) {
-//       unsigned int responseHigh = (unsigned int) response[2];
-//       unsigned int responseLow = (unsigned int) response[3];
-//       unsigned int ppm = (256*responseHigh) + responseLow;
-//       co2 = ppm;
-//     } else {
-//       Serial.println(response[0]);
-//       Serial.println(response[1]);
-//       Serial.println(response[8]);
-//     }
-//   } else { Serial.println("stream not availible"); }
-
-//   return co2;
-// }

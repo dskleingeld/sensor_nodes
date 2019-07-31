@@ -2,15 +2,16 @@
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 
 #include "wificonfig.hpp"
-#include "read_sensors.h"
+#include "read_sensors.hpp"
 #include "send_data.hpp"
-#include "config.h"
+#include "config.hpp"
 
 #ifdef ESP32
   #include <SPIFFS.h>
 #endif
 
 volatile bool shouldReset = false;
+Sensors sensors;
 
 WiFiManager wm;
 Params params;
@@ -26,7 +27,8 @@ void setup() {
     // put your setup code here, to run once:
     Serial.begin(115200);
 
-    //TODO start sensor reading;
+    sensors.init().handle_error() ;
+    sensors.configure().handle_error();
 
     #define FORMAT_SPIFFS_IF_FAILED true
     if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
@@ -35,7 +37,7 @@ void setup() {
     }
 
     //load params
-    if (load_params_from_FS(params)){
+    if (load_params_from_FS(params).is_err() ){
       set_params_for_portal(params, key_and_id_param, url_port_param);
     }
 
@@ -59,17 +61,18 @@ void setup() {
     //enable reset interupt
     pinMode(interruptPin, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, FALLING);
+
 }
 
 void loop() {
-  Serial.println("hi");
   uint8_t payload[sensordata_length+10];
   memcpy(payload, &params.node_id, 2);
   memcpy(payload+2, &params.key, 8);
   
-  read_to_package(payload+10);
-  post_payload(payload, params.url_port, sensordata_length);
+  read_to_package(sensors, payload+10).handle_error();
+  post_payload(payload, params.url_port, sensordata_length).handle_error();
 
+  Error::log.update_server();
   if (shouldReset) {reset();}
 
   //esp_sleep_enable_timer_wakeup(sleep_between_measurements);
@@ -78,18 +81,12 @@ void loop() {
   delay(5000);
 }
 
-
-void reset(){
-  wm.erase();
-  ESP.restart();
-}
-
 void IRAM_ATTR handleInterrupt() {
   detachInterrupt(digitalPinToInterrupt(interruptPin));
   shouldReset = true;
 }
 
 void saveParamsCallback () {
-  get_params_from_portal(params, key_and_id_param, url_port_param);
-  save_params_to_FS(params);
+  get_params_from_portal(params, key_and_id_param, url_port_param).handle_error();
+  save_params_to_FS(params).handle_error();
 }

@@ -1,6 +1,8 @@
 #ifndef WIFICONFIG_H
 #define WIFICONFIG_H
 
+#include "error.hpp"
+
 #include <cstring>
 #include <sstream>
 #include <cstdio>
@@ -27,9 +29,9 @@ class Params {
 };
 
 //bool get_params_from_portal();
-bool get_params_from_portal(Params &params, WiFiManagerParameter &key_and_id, WiFiManagerParameter &url_port_param);
+Error get_params_from_portal(Params &params, WiFiManagerParameter &key_and_id, WiFiManagerParameter &url_port_param);
 void set_params_for_portal(Params &params, WiFiManagerParameter &key_and_id, WiFiManagerParameter &url_port_param);
 
-bool save_params_to_FS(Params &params);
-bool load_params_from_FS(Params &params);
+Error save_params_to_FS(Params &params);
+Error load_params_from_FS(Params &params);
 #endif

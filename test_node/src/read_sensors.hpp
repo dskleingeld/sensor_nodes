@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "compression.h"
+#include "error.hpp"
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -11,11 +12,20 @@
 #include <MHZ19.h>
 #include <Zanshin_BME680.h>
 
-extern HardwareSerial serial2;
 constexpr int sensordata_length = 0+12+16+20+27+18+11;
-bool init_sensors();
 
-void read_to_package(uint8_t* payload);
+class Sensors {
+  public:
+    Sensors();
+    Error init();
+    Error configure();
+
+    BME680_Class bme680;
+    MHZ19 mhz19;
+    Max44009 max44009;
+};
+
+Error read_to_package(Sensors &sensors, uint8_t* payload);
 
 // pressure in 1/100 pascal, humidity in 1/1000 percent, temperature in 1/100 degree, gas in 1/100 mOhm,
 void encode_package(uint8_t* payload, int32_t temperature, 

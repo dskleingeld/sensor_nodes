@@ -63,58 +63,48 @@ void encode_package(uint8_t* payload, int32_t temperature,
   int32_t humidity, int32_t pressure, int32_t gas, float lux, int co2ppm)
 {
   int32_t decode_add, to_encode;
-  float decode_scale, org_scale, scale_to_apply;
+  float decode_scale, org_scale;
 
-  float test_value = -18.32;
   org_scale = 100; //temperature is in deci degrees
   decode_scale = 0.009999999776482582;
   decode_add = -20;
-  scale_to_apply = org_scale/decode_scale;
-  to_encode = (uint32_t)(temperature/scale_to_apply - decode_add/decode_scale); 
-  //value to encode, payload, package_offset_bits, length_bits
-  //encode(to_encode, payload, 0, 13);
-  
-  test_value *= org_scale;
   to_encode = (uint32_t)((temperature-decode_add*org_scale)/(decode_scale*org_scale));
   encode(to_encode, payload, 0, 13);
 
-  org_scale = 100; //temperature is in deci degrees
+  org_scale = 1000; //humidity is in milli percent
   decode_scale = 0.00800000037997961;
   decode_add = 0;
-  to_encode = (uint32_t)(humidity/decode_scale*org_scale - decode_add/decode_scale); 
-  //value to encode, payload, package_offset_bits, length_bits
+  to_encode = (uint32_t)((humidity-decode_add*org_scale)/(decode_scale*org_scale));
   encode(to_encode, payload, 13, 14);
 
 
-  org_scale = 100; //temperature is in deci degrees
+  org_scale = 1; //pressure is in pascal
   decode_scale = 0.18000000715255738;
   decode_add = 30000;
-  to_encode = (uint32_t)(pressure/decode_scale*org_scale - decode_add/decode_scale); 
-  //value to encode, payload, package_offset_bits, length_bits
+  to_encode = (uint32_t)((pressure-decode_add*org_scale)/(decode_scale*org_scale));
+  Serial.print("integer_repr: "); Serial.println(to_encode);
+  Serial.print("pressure in pascal: "); Serial.println(pressure);
   encode(to_encode, payload, 27, 19);
 
 
-  org_scale = 100; //temperature is in deci degrees
+  org_scale = 100; //gas resistance is in deci ohm
   decode_scale = 5.0;
-  decode_add = 5000.0;
-  to_encode = (uint32_t)(gas/decode_scale*org_scale - decode_add/decode_scale); 
-  //value to encode, payload, package_offset_bits, length_bits
+  decode_add = 0.0;
+  to_encode = (uint32_t)((gas-decode_add*org_scale)/(decode_scale*org_scale));
   encode(to_encode, payload, 46, 18);
 
 
-  org_scale = 1; //temperature is in deci degrees
+  org_scale = 1; //lux is in lux
   decode_scale = 0.10000000149011612;
   decode_add = 0.04500000178813934;
-  to_encode = (uint32_t)(lux/decode_scale*org_scale - decode_add/decode_scale); 
-  //value to encode, payload, package_offset_bits, length_bits
+  to_encode = (uint32_t)((lux-decode_add*org_scale)/(decode_scale*org_scale));
   encode(to_encode, payload, 64, 28);
 
 
-  org_scale = 1; //temperature is in deci degrees
+  org_scale = 1; //co2ppm ppm
   decode_scale = 1;
   decode_add = 0;
-  to_encode = (uint32_t)(co2ppm/decode_scale*org_scale - decode_add/decode_scale); 
-  //value to encode, payload, package_offset_bits, length_bits
+  to_encode = (uint32_t)((co2ppm-decode_add*org_scale)/(decode_scale*org_scale));
   encode(to_encode, payload, 92, 11);
 }
 

@@ -4,8 +4,8 @@ uint8_t div_up(uint8_t x, uint8_t y) {
 	return (x+y-1)/y;
 }
 
+///MUST get a zerod line.
 void encode(uint32_t to_encode, uint8_t* line, uint8_t bit_offset, uint8_t length) {
-
     //~ is the cpp bitwise NOT, when applied to any type it will turn it into
     //a int, even if int is not equal to uint8_t. thus we cast directly after
     //applying ~

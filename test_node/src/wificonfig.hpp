@@ -15,6 +15,8 @@
   #include <SPIFFS.h>
 #endif
 
+class Error; // forward declaration
+
 uint64_t uint64_t_from_str(char* str);
 uint16_t uint16_t_from_str(char* str);
 

@@ -26,6 +26,7 @@ void IRAM_ATTR handleInterrupt();
 void setup() {
     // put your setup code here, to run once:
     Serial.begin(115200);
+    delay(1000);
 
     sensors.init().handle_error() ;
     sensors.configure().handle_error();
@@ -38,6 +39,10 @@ void setup() {
 
     //load params
     if (load_params_from_FS(params).is_err() ){
+      Serial.println("could not load params file");
+      wm.resetSettings();      
+    } else {
+      Serial.println("setting portal params");
       set_params_for_portal(params, key_and_id_param, url_port_param);
     }
 
@@ -65,11 +70,13 @@ void setup() {
 }
 
 void loop() {
-  uint8_t payload[sensordata_length+10];
+  uint8_t payload[sensordata_length+10] = {0}; //creates a zerod line, critical it is all zero valued
+
   memcpy(payload, &params.node_id, 2);
   memcpy(payload+2, &params.key, 8);
   
   read_to_package(sensors, payload+10).handle_error();
+  Serial.println(sensordata_length);
   post_payload(payload, params.url_port, sensordata_length).handle_error();
 
   Error::log.update_server();

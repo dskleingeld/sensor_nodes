@@ -12,7 +12,11 @@
 #include <MHZ19.h>
 #include <Zanshin_BME680.h>
 
-constexpr int sensordata_length = 0+12+16+20+27+18+11;
+constexpr int divide_ceil(int x, int y) {
+	return (x + y - 1) / y;
+}
+
+constexpr int sensordata_length = divide_ceil(0+12+16+20+27+18+11, 8);
 
 class Sensors {
   public:

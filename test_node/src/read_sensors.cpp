@@ -24,9 +24,9 @@ Error Sensors::configure(){
   if (!mhz19.enableABC()) {Serial.println("COULD NOT CONFIG mhz19"); return Error::CANT_CONFIGURE_MHZ19;}
   mhz19.setRange(2000);  
 
-  bme680.setOversampling(TemperatureSensor,Oversample16); // Use enumerated type values
-  bme680.setOversampling(HumiditySensor,   Oversample16);
-  bme680.setOversampling(PressureSensor,   Oversample16);
+  bme680.setOversampling(TemperatureSensor, Oversample16); // Use enumerated type values
+  bme680.setOversampling(HumiditySensor, Oversample16);
+  bme680.setOversampling(PressureSensor, Oversample16);
   
   bme680.setIIRFilter(IIR4); // Setting IIR filter to a value of 4 samples;
   bme680.setGas(320,150); // 320°c for 150 milliseconds
@@ -60,36 +60,62 @@ Error read_to_package(Sensors &sensors, uint8_t* payload){
 
 // pressure in 1/100 pascal, humidity in 1/1000 percent, temperature in 1/100 degree, gas in 1/100 mOhm,
 void encode_package(uint8_t* payload, int32_t temperature, 
-  int32_t humidity, int32_t pressure, int32_t gas, float lux, int co2ppm){
-  int32_t encode_add, to_encode;
+  int32_t humidity, int32_t pressure, int32_t gas, float lux, int co2ppm)
+{
+  int32_t decode_add, to_encode;
+  float decode_scale, org_scale, scale_to_apply;
 
-  encode_add = 20*100;//temperature is in deci degrees
-  to_encode = (uint32_t)(temperature + encode_add); 
+  float test_value = -18.32;
+  org_scale = 100; //temperature is in deci degrees
+  decode_scale = 0.009999999776482582;
+  decode_add = -20;
+  scale_to_apply = org_scale/decode_scale;
+  to_encode = (uint32_t)(temperature/scale_to_apply - decode_add/decode_scale); 
   //value to encode, payload, package_offset_bits, length_bits
-  encode(to_encode, payload, 0, 12);
+  //encode(to_encode, payload, 0, 13);
+  
+  test_value *= org_scale;
+  to_encode = (uint32_t)((temperature-decode_add*org_scale)/(decode_scale*org_scale));
+  encode(to_encode, payload, 0, 13);
 
-  encode_add = 0;
-  to_encode = (uint32_t)(humidity/10);
-  encode(to_encode, payload, 0+12, 16);
+  org_scale = 100; //temperature is in deci degrees
+  decode_scale = 0.00800000037997961;
+  decode_add = 0;
+  to_encode = (uint32_t)(humidity/decode_scale*org_scale - decode_add/decode_scale); 
+  //value to encode, payload, package_offset_bits, length_bits
+  encode(to_encode, payload, 13, 14);
 
-  //range 5*10**4 pascal to 1*10**5
-  encode_add = -5e4 *100;
-  to_encode = (uint32_t)(pressure + encode_add)/100; 
-  encode(to_encode, payload, 0+12+16, 20);
 
-  //range 5*10**3 Ohm to 10**6 ohm 
-  encode_add = -5e3*100;
-  to_encode = (uint32_t)(pressure + encode_add);  
-  encode(to_encode, payload, 0+12+16+20, 27);
+  org_scale = 100; //temperature is in deci degrees
+  decode_scale = 0.18000000715255738;
+  decode_add = 30000;
+  to_encode = (uint32_t)(pressure/decode_scale*org_scale - decode_add/decode_scale); 
+  //value to encode, payload, package_offset_bits, length_bits
+  encode(to_encode, payload, 27, 19);
 
-  //range 0.045 lux to 1.88e5 lux
-  encode_add = 0;
-  to_encode = (uint32_t)(lux*100 + encode_add);  
-  encode(to_encode, payload, 0+12+16+20+27, 18);
 
-  encode_add =0;
-  to_encode = (uint32_t)(co2ppm + encode_add);  
-  encode(to_encode, payload, 0+12+16+20+27+18, 11);
+  org_scale = 100; //temperature is in deci degrees
+  decode_scale = 5.0;
+  decode_add = 5000.0;
+  to_encode = (uint32_t)(gas/decode_scale*org_scale - decode_add/decode_scale); 
+  //value to encode, payload, package_offset_bits, length_bits
+  encode(to_encode, payload, 46, 18);
+
+
+  org_scale = 1; //temperature is in deci degrees
+  decode_scale = 0.10000000149011612;
+  decode_add = 0.04500000178813934;
+  to_encode = (uint32_t)(lux/decode_scale*org_scale - decode_add/decode_scale); 
+  //value to encode, payload, package_offset_bits, length_bits
+  encode(to_encode, payload, 64, 28);
+
+
+  org_scale = 1; //temperature is in deci degrees
+  decode_scale = 1;
+  decode_add = 0;
+  to_encode = (uint32_t)(co2ppm/decode_scale*org_scale - decode_add/decode_scale); 
+  //value to encode, payload, package_offset_bits, length_bits
+  encode(to_encode, payload, 92, 11);
 }
 
 // pressure in 1/100 pascal, humidity in 1/1000 percent, temperature in 1/100 degree, gas in 1/100 mOhm,

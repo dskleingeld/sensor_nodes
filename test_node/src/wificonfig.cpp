@@ -25,7 +25,7 @@ Error get_params_from_portal(Params &params, WiFiManagerParameter &key_and_id, W
 
 void set_params_for_portal(Params &params, WiFiManagerParameter &key_and_id, WiFiManagerParameter &url_port_param){
     
-    char api_id_str[12];
+    char api_id_str[32];
     sprintf(api_id_str, "%u:%.10llu", params.node_id, params.key);
 
     key_and_id = WiFiManagerParameter("api_key", "api key", api_id_str, 32);
@@ -34,11 +34,12 @@ void set_params_for_portal(Params &params, WiFiManagerParameter &key_and_id, WiF
 
 
 Error save_params_to_FS(Params &params) {
+    Serial.println("Saving params");
 
     File param_file = SPIFFS.open("/params.raw", FILE_WRITE); //opens and truncates file
     if (!param_file) { Serial.println("failed to open params file for writing"); return Error::CANT_OPEN_FILE_FOR_WRITING; }
 
-    if (!param_file.write((uint8_t*)&params, sizeof(params))) {
+    if (!param_file.write((uint8_t*)&params, sizeof(struct Params))) {
         Serial.println("write failed!");
         param_file.close();
         return Error::CANT_WRITE_TO_FILE;
@@ -56,19 +57,22 @@ Error load_params_from_FS(Params &params){
     if (!param_file) { Serial.println("could not open existing params file"); return Error::CANT_OPEN_FILE_FOR_READING; }
 
     size_t length = param_file.size();
-    if (length == sizeof(params)) {  
-        Serial.println("did not read params file, incorrect size: "); 
+    if (length != sizeof(struct Params)) {  
+        Serial.print("did not read params file, incorrect size: "); 
         Serial.println(length);
+        Serial.print("correct size: ");
+        Serial.println(sizeof(struct Params));
         param_file.close();
         return Error::FILE_HAS_INCORRECT_SIZE; 
     }
 
-    std::unique_ptr<char[]> buf(new char[length]);
-    auto read = param_file.read((uint8_t*)&params, sizeof(params));
+    std::unique_ptr<uint8_t[]> buf(new uint8_t[length]);
+    auto read = param_file.read((uint8_t*)&params, sizeof(struct Params));
     param_file.close(); 
     
     if (read != sizeof(params)){ Serial.println("params corrupt"); return Error::READ_MORE_THEN_PARAMS; }
 
+    Serial.println("read params file without problems");
     return Error::NONE;
 }
 

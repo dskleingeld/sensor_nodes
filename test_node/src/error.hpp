@@ -5,66 +5,44 @@
 #include <array>
 #include <Arduino.h>
 #include <WiFi.h> // for esp_light_sleep_start()
+#include <HTTPClient.h>
 
 #include <WiFiManager.h> // for resetting wifimanager while in error handler
+#include "wificonfig.hpp" //FIXME get this into header
+#include "config.hpp"
 
 extern volatile bool shouldReset;
 
-enum ErrorCode : uint8_t {
-    NONE,
-    CANT_FIND_BME680,
-    CANT_CONFIGURE_MHZ19,
-    MAX44009_LIB_ERROR,
-
-    INCORRECT_KEY_ID_STRING,
-    CANT_OPEN_FILE_FOR_WRITING,
-    CANT_WRITE_TO_FILE,
-    FILE_DOES_NOT_EXIST,
-    CANT_OPEN_FILE_FOR_READING,
-    FILE_HAS_INCORRECT_SIZE,
-    READ_MORE_THEN_PARAMS,
-    
-    INVALID_SERVER_RESPONSE,
-}; 
-
-struct LogEntry {
-    ErrorCode error_code;
-    bool logged_at_server;
-};
-
-class Log {
-    public:
-        void add_to_log(ErrorCode error);
-        void update_server();
-    private:
-        uint8_t next_pos = 0;
-        std::array<LogEntry, 4> log;
-};
+class Log; 
 
 class Error {
     public:
-        enum Value : uint8_t {
-            NONE, 
-            CANT_FIND_BME680,
-            CANT_CONFIGURE_MHZ19,
-            MAX44009_LIB_ERROR,
+        enum Code : uint8_t {
+            UNKNOWN = 0,
 
-            INCORRECT_KEY_ID_STRING,
-            CANT_OPEN_FILE_FOR_WRITING,
-            CANT_WRITE_TO_FILE,
-            FILE_DOES_NOT_EXIST,
-            CANT_OPEN_FILE_FOR_READING,
-            FILE_HAS_INCORRECT_SIZE,
-            READ_MORE_THEN_PARAMS,
+            CANT_OPEN_FILE_FOR_WRITING=1,
+            CANT_WRITE_TO_FILE=2,
+            CANT_OPEN_FILE_FOR_READING=3,
+            FILE_HAS_INCORRECT_SIZE=4,
+            READ_MORE_THEN_PARAMS=5,
             
-            INVALID_SERVER_RESPONSE,
+            INVALID_SERVER_RESPONSE=6,
+
+            CANT_FIND_BME680=20,
+            CANT_CONFIGURE_MHZ19=21,
+            MAX44009_LIB_ERROR=22,
+
+            //unreported errors
+            FILE_DOES_NOT_EXIST,
+            INCORRECT_KEY_ID_STRING,
+            NONE,
         }; 
 
 
         Error() = default;
-        constexpr Error(Value anError) : value(anError){}
+        constexpr Error(Code anError) : value(anError){}
 
-        operator Value() const { return value; }  // Allow switch and comparisons.
+        operator Code() const { return value; }  // Allow switch and comparisons.
                                                     // note: Putting constexpr here causes
                                                     // clang to stop warning on incomplete
                                                     // case handling.
@@ -72,17 +50,39 @@ class Error {
 
         bool handle_error();
         bool is_err(){
-            return handle_error();
+            if (value == Code::NONE) {
+                Serial.println("no error");
+                return false;
+            } else {
+                add_to_log();
+                return true;
+            }
         };
-        
         //constexpr bool IsYellow() const { return value == Banana; }
         static Log log; //static memb var: global between class instances
 
     private:
-        Value value;
+        Code value;
         void add_to_log();
         void handle_unrecoverable();
         void handle_possible_recoverable();
+};
+
+uint8_t add_fields(uint8_t* payload, Error::Code errorcode);
+
+struct LogEntry {
+    Error::Code error_code;
+    bool logged_at_server;
+};
+
+class Log {
+    public:
+        void add_to_log(Error::Code error);
+        void update_server();
+    private:
+        uint8_t current_len = 0;
+        uint8_t next_pos = 0;
+        std::array<LogEntry, 4> log;
 };
 
 void reset();

@@ -26,7 +26,8 @@ void IRAM_ATTR handleInterrupt();
 void setup() {
     // put your setup code here, to run once:
     Serial.begin(115200);
-    delay(1000);
+    pinMode(interruptPin, INPUT_PULLUP);
+    if (digitalRead(interruptPin) == 0) reset(); 
 
     sensors.init().handle_error() ;
     sensors.configure().handle_error();
@@ -62,16 +63,12 @@ void setup() {
         Serial.println("failed to connect and hit timeout");
         //TODO go deep sleep for a while.
     }
-
-    //enable reset interupt
-    pinMode(interruptPin, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, FALLING);
-
 }
 
 void loop() {
-  uint8_t payload[sensordata_length+10] = {0}; //creates a zerod line, critical it is all zero valued
+  if (shouldReset) {reset();}
 
+  uint8_t payload[sensordata_length+10] = {0}; //creates a zerod line, critical it is all zero valued
   memcpy(payload, &params.node_id, 2);
   memcpy(payload+2, &params.key, 8);
   
@@ -80,20 +77,16 @@ void loop() {
   post_payload(payload, params.url_port, sensordata_length).handle_error();
 
   Error::log.update_server();
-  if (shouldReset) {reset();}
-
   //esp_sleep_enable_timer_wakeup(sleep_between_measurements);
   //esp_deep_sleep_start();
   Serial.println("did not go to deep sleep");
   delay(5000);
 }
 
-void IRAM_ATTR handleInterrupt() {
-  detachInterrupt(digitalPinToInterrupt(interruptPin));
-  shouldReset = true;
-}
-
 void saveParamsCallback () {
+  Serial.println("in callback");
   get_params_from_portal(params, key_and_id_param, url_port_param).handle_error();
+  Serial.println("got params");
   save_params_to_FS(params).handle_error();
+  Serial.println("saved em");
 }

@@ -76,6 +76,8 @@ void Log::update_server(){
             if (httpCode == 200) {
                 entry.logged_at_server = true;
                 Serial.println("reported error to server");
+            } else {
+                Serial.println("could not report error to sever");
             }
         }
     }
@@ -122,6 +124,12 @@ void Error::add_to_log(){
 void Error::handle_unrecoverable(){
     Serial.println("unrecoverable error happend, blinking until reset");
 
+    if (WiFi.status() == WL_CONNECTED) {
+        Error::log.update_server();
+    } else {
+        Serial.println("could not log error to sever as wifi was not connected");
+    }
+
     constexpr uint64_t sleep_duration_us = 0.5*1000*1000; //0.2 seconds in microseconds
     esp_sleep_enable_timer_wakeup(sleep_duration_us);
     pinMode(LED_BUILTIN, OUTPUT);
@@ -162,5 +170,8 @@ void Error::handle_possible_recoverable(){
 
 void reset(){
   wm.erase(); //TODO fix that reset funct works.
+  SPIFFS.format();
+
+  Serial.println("performed reset, restarting");
   ESP.restart();
 }

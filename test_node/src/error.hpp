@@ -7,11 +7,7 @@
 #include <WiFi.h> // for esp_light_sleep_start()
 #include <HTTPClient.h>
 
-#include <WiFiManager.h> // for resetting wifimanager while in error handler
-#include "wificonfig.hpp" //FIXME get this into header
 #include "config.hpp"
-
-extern volatile bool shouldReset;
 
 class Log; 
 
@@ -84,7 +80,5 @@ class Log {
         uint8_t next_pos = 0;
         std::array<LogEntry, 4> log;
 };
-
-void reset();
 
 #endif

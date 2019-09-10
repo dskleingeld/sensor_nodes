@@ -1,6 +1,6 @@
 #include "send_data.hpp"
 
-Error post_payload(uint8_t* payload, char* url_port, int sensordata_length){
+Error post_payload(uint8_t* payload, const char* url_port, int sensordata_length){
 
   HTTPClient https;
 

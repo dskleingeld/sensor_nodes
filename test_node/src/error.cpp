@@ -1,8 +1,5 @@
 #include "error.hpp"
 
-extern Params params;
-extern WiFiManager wm;
-
 uint8_t add_fields(uint8_t* payload, Error::Code error){
     uint8_t* fields = payload+11;
     switch(error) {
@@ -59,12 +56,12 @@ void Log::update_server(){
         if (entry.logged_at_server == false) {
             //send something to server [TODO, waiting on server impl]
             std::string url ("https://www.");
-            url.append(params.url_port);
+            url.append(url_port);
             url.append("/post_error");
 
             uint8_t payload[10+10];
-            memcpy(payload, &params.node_id, 2);
-            memcpy(payload+2, &params.key, 8);
+            memcpy(payload, &node_id, 2);
+            memcpy(payload+2, &key, 8);
             payload[10] = entry.error_code;
             uint8_t error_length = add_fields(payload, entry.error_code);
             Serial.println(error_length);
@@ -136,11 +133,9 @@ void Error::handle_unrecoverable(){
 
     while(true){ //can only exit via hardware reset/power toggle or hardware interrupt
         esp_light_sleep_start();
-        digitalWrite(LED_BUILTIN, HIGH);
+        //digitalWrite(LED_BUILTIN, HIGH);
         esp_light_sleep_start();
-        digitalWrite(LED_BUILTIN, LOW);
-
-        if (shouldReset) {reset();}
+        //digitalWrite(LED_BUILTIN, LOW);
     }
 }
 
@@ -161,17 +156,9 @@ void Error::handle_possible_recoverable(){
 
     for(int i=0; i<wait_time/(2*blink_frequency_s); i++){ //can only exit via hardware reset/power toggle or hardware interrupt
         esp_light_sleep_start();
-        digitalWrite(LED_BUILTIN, HIGH);
+        //digitalWrite(LED_BUILTIN, HIGH);
         esp_light_sleep_start();
-        digitalWrite(LED_BUILTIN, LOW);
+        //digitalWrite(LED_BUILTIN, LOW);
     }
     ESP.restart();
-}
-
-void reset(){
-  wm.erase(); //TODO fix that reset funct works.
-  SPIFFS.format();
-
-  Serial.println("performed reset, restarting");
-  ESP.restart();
 }

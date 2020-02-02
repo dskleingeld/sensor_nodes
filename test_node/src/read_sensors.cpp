@@ -40,13 +40,7 @@ Error read_to_package(Sensors &sensors, uint8_t* payload){
     Serial.println("Waiting for co2 sensor to warm up");
     delay(1000);
   }*/ //FIXME DISABLED TILL WE GET SENSOR TO RESPOND AGAIN
-
-  // Reading CO2 value. (Returns -1 if response wasn't received)
-  int co2ppm = sensors.mhz19.readValue();
-  if (co2ppm == -1){
-    Serial.println("Error co2:\t");   
-    return Error::CANT_READ_MHZ19;
-  }
+  sensors.mhz19.startMeasure();
 
   float lux = sensors.max44009.getLux();
   int err = sensors.max44009.getError();
@@ -59,6 +53,13 @@ Error read_to_package(Sensors &sensors, uint8_t* payload){
   int32_t temperature, humidity, pressure, gas;     // Variable to store readings
   sensors.bme680.getSensorData(temperature,humidity,pressure,gas); // Get most recent readings
 
+  // Reading CO2 value. (Returns -1 if response wasn't received)}
+  int co2ppm = sensors.mhz19.readValue();
+  if (co2ppm == -1){
+    Serial.println("Error co2:\t");   
+    return Error::CANT_READ_MHZ19;
+  }
+
   encode_package(payload, temperature, humidity, pressure, gas, lux, co2ppm);
   print_values(payload, temperature, humidity, pressure, gas, lux, co2ppm);
   
@@ -67,8 +68,7 @@ Error read_to_package(Sensors &sensors, uint8_t* payload){
 
 // pressure in 1/100 pascal, humidity in 1/1000 percent, temperature in 1/100 degree, gas in 1/100 mOhm,
 void encode_package(uint8_t* payload, int32_t temperature, 
-  int32_t humidity, int32_t pressure, int32_t gas, float lux, int co2ppm)
-{
+  int32_t humidity, int32_t pressure, int32_t gas, float lux, int co2ppm) {
   int32_t decode_add, to_encode;
   float decode_scale, org_scale;
 

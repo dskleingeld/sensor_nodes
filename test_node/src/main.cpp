@@ -39,12 +39,14 @@ void loop() {
   post_payload(payload, url_port, sensordata_length).handle_error();
 
   Error::log.update_server();
-  
-  constexpr uint64_t sleep_duration_us = 4500*1000; //4.5 seconds in microseconds
-  esp_sleep_enable_timer_wakeup(sleep_duration_us);
 
   Serial.println("starting light sleep");
-  esp_light_sleep_start();
+  Serial.flush();
+  constexpr uint64_t sleep_duration_us = 500*1000; //.5 seconds in microseconds
+  esp_sleep_enable_timer_wakeup(sleep_duration_us);
+  for (int i = 0; i < 5; i++){//loop needed to keep watchdog happy
+    esp_light_sleep_start();
+  }
   //delay(4500);
   //ESP.restart();
 }

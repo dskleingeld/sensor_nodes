@@ -157,17 +157,18 @@ void Error::handle_possible_recoverable(){
         Serial.println("could not log error to sever as wifi was not connected");
     }
 
-    constexpr int blink_frequency_s = 1.5;
-    constexpr uint64_t sleep_duration_us = blink_frequency_s*1000*1000; //0.2 seconds in microseconds
-    constexpr int wait_time = 60; //wait time in seconds
-    esp_sleep_enable_timer_wakeup(sleep_duration_us);
-    pinMode(LED_BUILTIN, OUTPUT);
+    //constexpr int blink_frequency_s = 1.5;
+    //constexpr uint64_t sleep_duration_us = blink_frequency_s*1000*1000; //0.2 seconds in microseconds
+    constexpr int wait_time = 5; //wait time in seconds
+    //esp_sleep_enable_timer_wakeup(sleep_duration_us);
+    //pinMode(LED_BUILTIN, OUTPUT);
 
-    for(int i=0; i<wait_time/(2*blink_frequency_s); i++){ //can only exit via hardware reset/power toggle or hardware interrupt
-        esp_light_sleep_start();
-        //digitalWrite(LED_BUILTIN, HIGH);
-        esp_light_sleep_start();
-        //digitalWrite(LED_BUILTIN, LOW);
-    }
+    // for(int i=0; i<wait_time/(2*blink_frequency_s); i++){ //can only exit via hardware reset/power toggle or hardware interrupt
+    //     esp_light_sleep_start();
+    //     //digitalWrite(LED_BUILTIN, HIGH);
+    //     esp_light_sleep_start();
+    //     //digitalWrite(LED_BUILTIN, LOW);
+    // }
+    delay(wait_time);
     ESP.restart();
 }

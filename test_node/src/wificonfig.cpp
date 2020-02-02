@@ -37,12 +37,19 @@ Error save_params_to_FS(Params &params) {
     Serial.println("Saving params");
 
     File param_file = SPIFFS.open("/params.raw", FILE_WRITE); //opens and truncates file
-    if (!param_file) { Serial.println("failed to open params file for writing"); return Error::CANT_OPEN_FILE_FOR_WRITING; }
+    if (!param_file) { 
+        Serial.println("failed to open params file for writing"); 
+        return Error::CANT_OPEN_FILE_FOR_WRITING;
+    } else {
+        Serial.println("flushing files");
+    }
 
     if (!param_file.write((uint8_t*)&params, sizeof(struct Params))) {
         Serial.println("write failed!");
         param_file.close();
         return Error::CANT_WRITE_TO_FILE;
+    } else {
+        Serial.println("wrote data to params file");
     }
 
     param_file.flush();

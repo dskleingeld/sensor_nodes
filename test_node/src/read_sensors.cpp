@@ -15,7 +15,8 @@ Error Sensors::init(){
   while (!bme680.begin(I2C_STANDARD_MODE)) { //start BME
     uint64_t elapsed = millis() - start;
     if(elapsed > timeout){ return Error::CANT_FIND_BME680; }
-      Serial.println(F("-  Unable to find BME680. Waiting .1 second")); delay(100); 
+    Serial.println(F("-  Unable to find BME680. Waiting .1 second")); 
+    delay(100); 
   }
   return Error::NONE;
 }
@@ -34,17 +35,23 @@ Error Sensors::configure(){
 }
 
 Error read_to_package(Sensors &sensors, uint8_t* payload){
-
-  //Serial.println(readCO2(serial2));
-
-  // if (!mhz19.isReady()) { delay(1000); }// Checking if sensor had preheated for 3 mins
   
-  int co2ppm = sensors.mhz19.readValue(); // Reading CO2 value. (Returns -1 if response wasn't received)
+  /*while (!sensors.mhz19.isReady()) {//only happens on startup
+    Serial.println("Waiting for co2 sensor to warm up");
+    delay(1000);
+  }*/ //FIXME DISABLED TILL WE GET SENSOR TO RESPOND AGAIN
+
+  // Reading CO2 value. (Returns -1 if response wasn't received)
+  int co2ppm = sensors.mhz19.readValue();
+  if (co2ppm == -1){
+    Serial.println("Error co2:\t");   
+    return Error::CANT_READ_MHZ19;
+  }
 
   float lux = sensors.max44009.getLux();
   int err = sensors.max44009.getError();
   if (err != 0) {
-     Serial.print("Error:\t");
+     Serial.print("Error: max44009\t");
      Serial.println(err);
      return Error::MAX44009_LIB_ERROR;
   }

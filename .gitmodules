@@ -7,4 +7,4 @@
 	url = https://github.com/SV-Zanshin/BME680
 [submodule "test_node/lib/MHZ19"]
 	path = test_node/lib/MHZ19
-	url = https://github.com/KonstantoS/MHZ19
+	url = https://github.com/dskleingeld/MHZ19

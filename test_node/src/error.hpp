@@ -7,11 +7,7 @@
 #include <WiFi.h> // for esp_light_sleep_start()
 #include <HTTPClient.h>
 
-#include <WiFiManager.h> // for resetting wifimanager while in error handler
-#include "wificonfig.hpp" //FIXME get this into header
 #include "config.hpp"
-
-extern volatile bool shouldReset;
 
 class Log; 
 
@@ -31,6 +27,7 @@ class Error {
             CANT_FIND_BME680=20,
             CANT_CONFIGURE_MHZ19=21,
             MAX44009_LIB_ERROR=22,
+            CANT_READ_MHZ19=23,
 
             //unreported errors
             FILE_DOES_NOT_EXIST,
@@ -84,7 +81,5 @@ class Log {
         uint8_t next_pos = 0;
         std::array<LogEntry, 4> log;
 };
-
-void reset();
 
 #endif

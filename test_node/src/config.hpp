@@ -17,5 +17,12 @@ extern const int api_key_size;
 //extern const uint16_t default_node_id = 0;
 
 extern const char* rootCACertificate;
+///////////////////////////////////
+
+extern const uint16_t node_id;
+extern const uint64_t key;
+extern const char* ssid;     //  your network SSID (name)
+extern const char* pass;  // your network password
+extern const char* url_port;
 
 #endif

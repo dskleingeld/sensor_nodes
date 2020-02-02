@@ -1,8 +1,7 @@
 #include "error.hpp"
 
-extern Params params;
-extern WiFiManager wm;
-
+///add fields that are comprimised to error report (in payload)
+///returns the length of payload used/number of comprimised fields
 uint8_t add_fields(uint8_t* payload, Error::Code error){
     uint8_t* fields = payload+11;
     switch(error) {
@@ -13,6 +12,7 @@ uint8_t add_fields(uint8_t* payload, Error::Code error){
             fields[2] = 3;
             return 4;
         case Error::CANT_CONFIGURE_MHZ19:
+        case Error::CANT_READ_MHZ19:
             fields[0] = 5; 
             return 1;
         case Error::MAX44009_LIB_ERROR:
@@ -28,7 +28,7 @@ uint8_t add_fields(uint8_t* payload, Error::Code error){
         case Error::READ_MORE_THEN_PARAMS:
         case Error::INVALID_SERVER_RESPONSE:
         case Error::UNKNOWN:
-            fields[0] = UINT8_MAX;
+            fields[0] = UINT8_MAX; //reserved
             return 1;
             break;
         case Error::NONE :
@@ -59,12 +59,12 @@ void Log::update_server(){
         if (entry.logged_at_server == false) {
             //send something to server [TODO, waiting on server impl]
             std::string url ("https://www.");
-            url.append(params.url_port);
+            url.append(url_port);
             url.append("/post_error");
 
             uint8_t payload[10+10];
-            memcpy(payload, &params.node_id, 2);
-            memcpy(payload+2, &params.key, 8);
+            memcpy(payload, &node_id, 2);
+            memcpy(payload+2, &key, 8);
             payload[10] = entry.error_code;
             uint8_t error_length = add_fields(payload, entry.error_code);
             Serial.println(error_length);
@@ -76,6 +76,8 @@ void Log::update_server(){
             if (httpCode == 200) {
                 entry.logged_at_server = true;
                 Serial.println("reported error to server");
+            } else {
+                Serial.println("could not report error to sever");
             }
         }
     }
@@ -92,6 +94,7 @@ bool Error::handle_error(){
 
         case CANT_FIND_BME680:
         case CANT_CONFIGURE_MHZ19:
+        case CANT_READ_MHZ19:
         case MAX44009_LIB_ERROR:
             add_to_log();
         case INCORRECT_KEY_ID_STRING:
@@ -122,18 +125,25 @@ void Error::add_to_log(){
 void Error::handle_unrecoverable(){
     Serial.println("unrecoverable error happend, blinking until reset");
 
-    constexpr uint64_t sleep_duration_us = 0.5*1000*1000; //0.2 seconds in microseconds
+    if (WiFi.status() == WL_CONNECTED) {
+        Error::log.update_server();
+    } else {
+        Serial.println("could not log error to sever as wifi was not connected");
+    }
+
+    //constexpr uint64_t sleep_duration_us = 0.5*1000*1000; //0.2 seconds in microseconds
+    constexpr uint64_t sleep_duration_us = 4*1000*1000; //0.2 seconds in microseconds
     esp_sleep_enable_timer_wakeup(sleep_duration_us);
     pinMode(LED_BUILTIN, OUTPUT);
 
-    while(true){ //can only exit via hardware reset/power toggle or hardware interrupt
+    /*while(true){ //can only exit via hardware reset/power toggle or hardware interrupt
         esp_light_sleep_start();
-        digitalWrite(LED_BUILTIN, HIGH);
+        //digitalWrite(LED_BUILTIN, HIGH);
         esp_light_sleep_start();
-        digitalWrite(LED_BUILTIN, LOW);
-
-        if (shouldReset) {reset();}
-    }
+        //digitalWrite(LED_BUILTIN, LOW);
+    }*/
+    esp_light_sleep_start();
+    ESP.restart();
 }
 
 void Error::handle_possible_recoverable(){
@@ -143,6 +153,8 @@ void Error::handle_possible_recoverable(){
     //TODO if log fails keep trying throughout sleep period
     if (WiFi.status() == WL_CONNECTED) {
         Error::log.update_server();
+    } else {
+        Serial.println("could not log error to sever as wifi was not connected");
     }
 
     constexpr int blink_frequency_s = 1.5;
@@ -153,14 +165,9 @@ void Error::handle_possible_recoverable(){
 
     for(int i=0; i<wait_time/(2*blink_frequency_s); i++){ //can only exit via hardware reset/power toggle or hardware interrupt
         esp_light_sleep_start();
-        digitalWrite(LED_BUILTIN, HIGH);
+        //digitalWrite(LED_BUILTIN, HIGH);
         esp_light_sleep_start();
-        digitalWrite(LED_BUILTIN, LOW);
+        //digitalWrite(LED_BUILTIN, LOW);
     }
     ESP.restart();
-}
-
-void reset(){
-  wm.erase(); //TODO fix that reset funct works.
-  ESP.restart();
 }

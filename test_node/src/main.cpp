@@ -1,99 +1,50 @@
-#include <FS.h>          // this needs to be first, or it all crashes and burns...
-#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
+#include <WiFi.h>
 
-#include "wificonfig.hpp"
 #include "read_sensors.hpp"
 #include "send_data.hpp"
 #include "config.hpp"
 
-#ifdef ESP32
-  #include <SPIFFS.h>
-#endif
-
-volatile bool shouldReset = false;
+IPAddress dns(1, 1, 1, 1);  //Cloudfare dns  
 Sensors sensors;
-
-WiFiManager wm;
-Params params;
-
-WiFiManagerParameter key_and_id_param("api_key", "api key", "0:00000000", 32);
-WiFiManagerParameter url_port_param("url_port", "url and port", "server.com:8080", 80);
-
-void saveParamsCallback();
-void reset();
-void IRAM_ATTR handleInterrupt();
 
 void setup() {
     // put your setup code here, to run once:
     Serial.begin(115200);
-    delay(1000);
+
+    WiFi.begin(ssid, pass);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
 
     sensors.init().handle_error() ;
     sensors.configure().handle_error();
-
-    #define FORMAT_SPIFFS_IF_FAILED true
-    if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
-      //SPIFFS.format(); //cleans filesystem for testing
-      Serial.println("failed to mount FS"); return;
-    }
-
-    //load params
-    if (load_params_from_FS(params).is_err() ){
-      Serial.println("could not load params file");
-      wm.resetSettings();      
-    } else {
-      Serial.println("setting portal params");
-      set_params_for_portal(params, key_and_id_param, url_port_param);
-    }
-
-    //reset settings - wipe credentials for testing
-    //wm.resetSettings();
-    wm.addParameter(&key_and_id_param);
-    wm.addParameter(&url_port_param);
-    wm.setConfigPortalBlocking(true);
-    wm.setSaveParamsCallback(saveParamsCallback);
-
-    //automatically connect using saved credentials if they exist
-    //If connection fails it starts an access point with the specified name
-    if(wm.autoConnect("AutoConnectAP")){
-        Serial.println("connected...yeey :)");
-    }
-    else {
-        Serial.println("failed to connect and hit timeout");
-        //TODO go deep sleep for a while.
-    }
-
-    //enable reset interupt
-    pinMode(interruptPin, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, FALLING);
-
 }
 
 void loop() {
-  uint8_t payload[sensordata_length+10] = {0}; //creates a zerod line, critical it is all zero valued
 
-  memcpy(payload, &params.node_id, 2);
-  memcpy(payload+2, &params.key, 8);
+  IPAddress primaryDNS(8, 8, 8, 8); //optional
+  IPAddress secondaryDNS(8, 8, 4, 4); //optional
+  auto local_ip = WiFi.localIP();
+  auto gateway_ip = WiFi.gatewayIP();
+  auto subnetmask = WiFi.subnetMask();
+  WiFi.config(local_ip, gateway_ip, subnetmask,primaryDNS,secondaryDNS);
+
+  uint8_t payload[sensordata_length+10] = {0}; //creates a zerod line, critical it is all zero valued
+  memcpy(payload, &node_id, 2);
+  memcpy(payload+2, &key, 8);
   
   read_to_package(sensors, payload+10).handle_error();
   Serial.println(sensordata_length);
-  post_payload(payload, params.url_port, sensordata_length).handle_error();
+  post_payload(payload, url_port, sensordata_length).handle_error();
 
   Error::log.update_server();
-  if (shouldReset) {reset();}
+  
+  constexpr uint64_t sleep_duration_us = 4500*1000; //4.5 seconds in microseconds
+  esp_sleep_enable_timer_wakeup(sleep_duration_us);
 
-  //esp_sleep_enable_timer_wakeup(sleep_between_measurements);
-  //esp_deep_sleep_start();
-  Serial.println("did not go to deep sleep");
-  delay(5000);
-}
-
-void IRAM_ATTR handleInterrupt() {
-  detachInterrupt(digitalPinToInterrupt(interruptPin));
-  shouldReset = true;
-}
-
-void saveParamsCallback () {
-  get_params_from_portal(params, key_and_id_param, url_port_param).handle_error();
-  save_params_to_FS(params).handle_error();
+  Serial.println("starting light sleep");
+  esp_light_sleep_start();
+  //delay(4500);
+  //ESP.restart();
 }

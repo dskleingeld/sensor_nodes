@@ -23,6 +23,8 @@ class Error {
             READ_MORE_THEN_PARAMS=5,
             
             INVALID_SERVER_RESPONSE=6,
+            CAN_NOT_CREATE_CLIENT=7,
+            CAN_NOT_CONNECT_TO_SERVER=8,
 
             CANT_FIND_BME680=20,
             CANT_CONFIGURE_MHZ19=21,

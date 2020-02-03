@@ -38,7 +38,7 @@ Error read_to_package(Sensors &sensors, uint8_t* payload){
   
   /*while (!sensors.mhz19.isReady()) {//only happens on startup
     Serial.println("Waiting for co2 sensor to warm up");
-    delay(1000);
+    delay(500);
   }*/ //FIXME DISABLED TILL WE GET SENSOR TO RESPOND AGAIN
   sensors.mhz19.startMeasure();
 
@@ -120,11 +120,8 @@ void print_values(uint8_t* payload, int32_t temperature, int32_t humidity,
      int32_t pressure, int32_t gas, float lux, int co2ppm){
 
     Serial.print(temperature/100.0,2);                       // Temperature in deci-degrees
-    #ifdef ESP32
-      Serial.print(F("deg ")); // Esp32 compiler doesn't liked escaped string
-    #else
-      Serial.print(F("\xC2\xB0\C "));                          // Representation of the ° symbol
-    #endif
+    Serial.print(F("deg ")); // Esp32 compiler doesn't liked escaped string
+
     Serial.print(humidity/1000.0,2);                         // Humidity in milli-percent
     Serial.print(F("%Hum "));
     Serial.print(pressure/100.0,2);                          // Pressure in Pascals

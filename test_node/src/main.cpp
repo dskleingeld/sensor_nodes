@@ -16,19 +16,18 @@ void setup() {
         delay(500);
         Serial.print(".");
     }
+    IPAddress primaryDNS(8, 8, 8, 8); //optional
+    IPAddress secondaryDNS(8, 8, 4, 4); //optional
+    auto local_ip = WiFi.localIP();
+    auto gateway_ip = WiFi.gatewayIP();
+    auto subnetmask = WiFi.subnetMask();
+    WiFi.config(local_ip, gateway_ip, subnetmask,primaryDNS,secondaryDNS);
 
     sensors.init().handle_error() ;
     sensors.configure().handle_error();
 }
 
 void loop() {
-
-  IPAddress primaryDNS(8, 8, 8, 8); //optional
-  IPAddress secondaryDNS(8, 8, 4, 4); //optional
-  auto local_ip = WiFi.localIP();
-  auto gateway_ip = WiFi.gatewayIP();
-  auto subnetmask = WiFi.subnetMask();
-  WiFi.config(local_ip, gateway_ip, subnetmask,primaryDNS,secondaryDNS);
 
   uint8_t payload[sensordata_length+10] = {0}; //creates a zerod line, critical it is all zero valued
   memcpy(payload, &node_id, 2);

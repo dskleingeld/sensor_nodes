@@ -19,6 +19,8 @@ uint8_t add_fields(uint8_t* payload, Error::Code error){
             fields[0] = 4; 
             return 1;
 
+        case Error::CAN_NOT_CREATE_CLIENT:
+        case Error::CAN_NOT_CONNECT_TO_SERVER:
         case Error::INCORRECT_KEY_ID_STRING:
         case Error::CANT_OPEN_FILE_FOR_WRITING:
         case Error::CANT_WRITE_TO_FILE:

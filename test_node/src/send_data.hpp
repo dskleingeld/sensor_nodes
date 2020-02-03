@@ -2,6 +2,8 @@
 #define SEND_DATA_H
 
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+
 #include "error.hpp"
 #include "config.hpp"
 
